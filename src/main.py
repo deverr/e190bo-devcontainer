@@ -79,6 +79,16 @@ def vote_for_idea(idea_id: int, payload: VoteCreate):
     with Session(engine) as s:
         if s.get(Idea, idea_id) is None:
             raise HTTPException(404, "no such idea")
+
+        # One vote per voter per idea: refuse a repeat with 409 Conflict.
+        existing_vote = s.exec(
+            select(Vote)
+            .where(Vote.idea_id == idea_id)
+            .where(Vote.voter == payload.voter)
+        ).first()
+        if existing_vote is not None:
+            raise HTTPException(409, "already voted")
+
         vote = Vote(idea_id=idea_id, voter=payload.voter)
         s.add(vote)
         s.commit()
